@@ -10,12 +10,15 @@ const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 
+const app = express(); // VACİB: app burada təyin olunmalıdır
+
 const {
   PORT = 3000, BASE_URL = `http://localhost:${PORT}`, JWT_SECRET, OPENAI_API_KEY,
   EPOINT_PUBLIC_KEY, EPOINT_PRIVATE_KEY, EPOINT_BASE_URL = 'https://epoint.az', EPOINT_CURRENCY = 'USD', EPOINT_LANGUAGE = 'en',
   OPENAI_IMAGE_MODEL = 'gpt-image-2', OPENAI_IMAGE_QUALITY = 'medium',
   FREE_CREDITS = '1', RETENTION_DAYS = '90'
 } = process.env;
+
 if (!JWT_SECRET) throw new Error('JWT_SECRET is required in .env');
 const epointReady = !!(EPOINT_PUBLIC_KEY && EPOINT_PRIVATE_KEY);
 
@@ -38,6 +41,7 @@ CREATE TABLE IF NOT EXISTS payments (order_id TEXT PRIMARY KEY, user_id INTEGER 
 CREATE INDEX IF NOT EXISTS p_user ON payments(user_id);
 CREATE INDEX IF NOT EXISTS g_user ON generations(user_id);
 `);
+
 /* anti-abuse columns (added once on existing databases) */
 for (const col of ['email_key TEXT', 'signup_ip TEXT']) {
   try { db.exec('ALTER TABLE users ADD COLUMN ' + col); } catch (e) { /* already exists */ }
@@ -48,7 +52,7 @@ app.use(express.static(__dirname));
 app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 
-/* ---- Epoint helpers: data = base64(JSON), signature = base64(sha1_raw(private + data + private)) ---- */
+/* ---- Epoint helpers ---- */
 const epSign = (data) => crypto.createHash('sha1').update(EPOINT_PRIVATE_KEY + data + EPOINT_PRIVATE_KEY).digest('base64');
 const epPack = (obj) => { const data = Buffer.from(JSON.stringify(obj)).toString('base64'); return { data, signature: epSign(data) }; };
 function epSignatureOk(data, signature) {
@@ -56,7 +60,7 @@ function epSignatureOk(data, signature) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-/* Epoint result callback: the ONLY place credits are granted for payments */
+/* Epoint result callback */
 app.post('/api/epoint-callback', express.urlencoded({ extended: false, limit: '64kb' }), (req, res) => {
   if (!epointReady) return res.status(503).end();
   const { data, signature } = req.body || {};
@@ -67,7 +71,6 @@ app.post('/api/epoint-callback', express.urlencoded({ extended: false, limit: '6
   const pay = db.prepare('SELECT * FROM payments WHERE order_id = ?').get(String(r.order_id || ''));
   if (!pay) return res.status(200).send('OK');
   if (r.status === 'success') {
-    // amount / currency must match what we asked for (when Epoint reports them)
     if (r.amount !== undefined && Math.abs(Number(r.amount) - pay.cents / 100) > 0.005) { console.warn('epoint callback: amount mismatch', r.order_id); return res.status(200).send('OK'); }
     if (r.currency && String(r.currency).toUpperCase() !== EPOINT_CURRENCY.toUpperCase()) { console.warn('epoint callback: currency mismatch', r.order_id); return res.status(200).send('OK'); }
     db.transaction(() => {
@@ -103,7 +106,6 @@ const genLimit = rateLimit({ windowMs: 60e3, max: 6, standardHeaders: true, mess
 
 app.get('/api/health', (_req, res) => res.json({ ok: true, ai: !!OPENAI_API_KEY, payments: epointReady }));
 
-/* Gmail ignores dots and +tags; treat them as the same mailbox so one person can't farm free credits */
 function emailKey(em) {
   let [local, domain] = em.split('@');
   if (domain === 'googlemail.com') domain = 'gmail.com';
@@ -113,6 +115,7 @@ function emailKey(em) {
 }
 const DISPOSABLE = new Set(['mailinator.com', 'guerrillamail.com', '10minutemail.com', 'tempmail.com', 'temp-mail.org', 'yopmail.com', 'trashmail.com', 'throwawaymail.com', 'sharklasers.com', 'getnada.com', 'dispostable.com', 'maildrop.cc']);
 const signupLimit = rateLimit({ windowMs: 24 * 3600e3, max: 5, standardHeaders: true, message: { error: 'Too many sign-ups from this network. Try again tomorrow.' } });
+
 app.post('/api/signup', authLimit, signupLimit, async (req, res) => {
   const { name, email, password } = req.body || {};
   const em = String(email || '').trim().toLowerCase();
@@ -123,7 +126,7 @@ app.post('/api/signup', authLimit, signupLimit, async (req, res) => {
   if (!nm) return res.status(400).json({ error: 'Name is required' });
   const ek = emailKey(em);
   if (db.prepare('SELECT 1 FROM users WHERE email = ? OR email_key = ?').get(em, ek)) return res.status(409).json({ error: 'This email is already registered' });
-  // free credits: only for the first 2 sign-ups per network per 30 days (others can still buy credits)
+  
   const recent = db.prepare('SELECT COUNT(*) AS n FROM users WHERE signup_ip = ? AND created > ?').get(req.ip, Date.now() - 30 * 864e5).n;
   const free = recent < 2 ? (parseInt(FREE_CREDITS, 10) || 0) : 0;
   const r = db.prepare('INSERT INTO users (email, name, pw, credits, created, email_key, signup_ip) VALUES (?,?,?,?,?,?,?)')
@@ -131,6 +134,7 @@ app.post('/api/signup', authLimit, signupLimit, async (req, res) => {
   setSession(res, r.lastInsertRowid);
   res.json({ user: publicUser(db.prepare('SELECT * FROM users WHERE id = ?').get(r.lastInsertRowid)) });
 });
+
 app.post('/api/login', authLimit, async (req, res) => {
   const em = String((req.body || {}).email || '').trim().toLowerCase();
   const u = db.prepare('SELECT * FROM users WHERE email = ?').get(em);
@@ -138,6 +142,7 @@ app.post('/api/login', authLimit, async (req, res) => {
   setSession(res, u.id);
   res.json({ user: publicUser(u) });
 });
+
 app.post('/api/logout', (_req, res) => { res.clearCookie('maestro'); res.json({ ok: true }); });
 app.get('/api/me', auth, (req, res) => res.json({ user: publicUser(req.user) }));
 
@@ -149,14 +154,16 @@ app.get('/api/generations', auth, (req, res) => {
     .map((o) => ({ plan: o.plan, credits: o.credits, amount: o.cents / 100, mode: 'epoint', ts: o.paid_at || o.created }));
   res.json({ generations, orders });
 });
+
 app.delete('/api/generations/:id', auth, (req, res) => {
   const g = db.prepare('SELECT * FROM generations WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
   if (g) { [g.before_file, g.after_file].forEach((f) => fs.unlink(path.join(IMG, f), () => {})); db.prepare('DELETE FROM generations WHERE id = ?').run(g.id); }
   res.json({ ok: true });
 });
+
 app.use('/img', express.static(IMG, { maxAge: '7d', index: false }));
 
-/* ---- AI render: key stays on the server, 1 credit per render, refunded on failure ---- */
+/* ---- AI render ---- */
 const clip = (v, n) => String(v || '').replace(/[\r\n]+/g, ' ').slice(0, n);
 app.post('/api/generate', auth, genLimit, async (req, res) => {
   if (!OPENAI_API_KEY) return res.status(503).json({ error: 'AI engine is not configured' });
@@ -189,12 +196,12 @@ app.post('/api/generate', auth, genLimit, async (req, res) => {
     res.json({ image: '/img/' + af, credits: db.prepare('SELECT credits FROM users WHERE id = ?').get(req.user.id).credits });
   } catch (e) {
     console.error('generate failed:', e.message);
-    db.prepare('UPDATE users SET credits = credits + 1 WHERE id = ?').run(req.user.id); // refund
+    db.prepare('UPDATE users SET credits = credits + 1 WHERE id = ?').run(req.user.id);
     res.status(502).json({ error: 'Render failed — your credit was refunded. Try again.' });
   }
 });
 
-/* ---- payments: Epoint (customer pays with any bank card on Epoint's page; credits are added by the callback above) ---- */
+/* ---- payments: Epoint ---- */
 app.post('/api/checkout', auth, async (req, res) => {
   if (!epointReady) return res.status(503).json({ error: 'Payments are not configured' });
   const plan = (req.body || {}).plan, p = PLANS[plan];
@@ -220,7 +227,7 @@ app.post('/api/checkout', auth, async (req, res) => {
   }
 });
 
-/* ---- housekeeping: delete old renders so the disk never fills up ---- */
+/* ---- housekeeping ---- */
 function cleanup() {
   const days = parseInt(RETENTION_DAYS, 10);
   if (!days) return;

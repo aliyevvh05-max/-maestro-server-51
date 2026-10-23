@@ -44,7 +44,7 @@ for (const col of ['email_key TEXT', 'signup_ip TEXT']) {
 }
 db.exec('CREATE INDEX IF NOT EXISTS u_ekey ON users(email_key); CREATE INDEX IF NOT EXISTS u_ip ON users(signup_ip, created);');
 
-const app = express();
+app.use(express.static(__dirname));
 app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 

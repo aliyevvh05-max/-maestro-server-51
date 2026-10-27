@@ -1251,5 +1251,174 @@ if (document.readyState === 'loading') addEventListener('DOMContentLoaded', boot
     });
   }
 </script>
+<!-- Auth Modal / Pəncərəsi -->
+<div id="authModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; justify-content:center; align-items:center;">
+  <div style="background:#1a1a1a; padding:30px; border-radius:12px; width:400px; color:#fff; position:relative; font-family:sans-serif;">
+    <button onclick="closeAuthModal()" style="position:absolute; top:15px; right:15px; background:none; border:none; color:#fff; font-size:20px; cursor:pointer;">&times;</button>
+    
+    <div style="display:flex; gap:15px; margin-bottom:20px; border-bottom:1px solid #333; padding-bottom:10px;">
+      <button id="tabLoginBtn" onclick="switchTab('login')" style="background:none; border:none; color:#fff; font-weight:bold; cursor:pointer; font-size:16px;">Sign In</button>
+      <button id="tabSignupBtn" onclick="switchTab('signup')" style="background:none; border:none; color:#888; cursor:pointer; font-size:16px;">Create Account</button>
+    </div>
+
+    <!-- Login Form -->
+    <form id="loginForm" onsubmit="handleLogin(event)">
+      <div style="margin-bottom:15px;">
+        <label style="font-size:12px; color:#aaa;">Email</label>
+        <input type="email" id="loginEmail" required style="width:100%; padding:10px; margin-top:5px; background:#222; border:1px solid #44144; color:#fff; border-radius:6px;">
+      </div>
+      <div style="margin-bottom:15px;">
+        <label style="font-size:12px; color:#aaa;">Password</label>
+        <input type="password" id="loginPassword" required style="width:100%; padding:10px; margin-top:5px; background:#222; border:1px solid #444; color:#fff; border-radius:6px;">
+      </div>
+      <div style="margin-bottom:15px; text-align:right;">
+        <a href="#" onclick="showForgotPassword(event)" style="color:#aaa; font-size:12px; text-decoration:underline;">Şifrəni unutmusan?</a>
+      </div>
+      <div id="loginError" style="color:#ff4444; font-size:12px; margin-bottom:10px;"></div>
+      <button type="submit" style="width:100%; padding:12px; background:#fff; color:#000; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">SIGN IN</button>
+    </form>
+
+    <!-- Signup Form -->
+    <form id="signupForm" style="display:none;" onsubmit="handleSignup(event)">
+      <div style="margin-bottom:15px;">
+        <label style="font-size:12px; color:#aaa;">Email</label>
+        <input type="email" id="signupEmail" required style="width:100%; padding:10px; margin-top:5px; background:#222; border:1px solid #444; color:#fff; border-radius:6px;">
+      </div>
+      <div style="margin-bottom:15px;">
+        <label style="font-size:12px; color:#aaa;">Password</label>
+        <input type="password" id="signupPassword" required style="width:100%; padding:10px; margin-top:5px; background:#222; border:1px solid #444; color:#fff; border-radius:6px;">
+      </div>
+      <div id="signupError" style="color:#ff4444; font-size:12px; margin-bottom:10px;"></div>
+      <button type="submit" style="width:100%; padding:12px; background:#fff; color:#000; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">CREATE ACCOUNT - 3 FREE CREDITS</button>
+    </form>
+
+    <!-- Forgot Password Form -->
+    <form id="forgotForm" style="display:none;" onsubmit="handleForgot(event)">
+      <p style="font-size:13px; color:#aaa; margin-bottom:15px;">E-poçt ünvanınızı daxil edin, sizə şifrə sıfırlama kodu göndərəcəyik.</p>
+      <div style="margin-bottom:15px;">
+        <input type="email" id="forgotEmail" required placeholder="E-poçt" style="width:100%; padding:10px; background:#222; border:1px solid #444; color:#fff; border-radius:6px;">
+      </div>
+      <div id="forgotMessage" style="color:#4bb543; font-size:12px; margin-bottom:10px;"></div>
+      <button type="submit" style="width:100%; padding:12px; background:#fff; color:#000; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">ŞİFRƏni BƏRPA ET</button>
+      <div style="margin-top:10px; text-align:center;">
+        <a href="#" onclick="backToLogin(event)" style="color:#aaa; font-size:12px;">Girişə qayıt</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function switchTab(tab) {
+  if(tab === 'login') {
+    document.getElementById('loginForm').style.display = 'block';
+    document.getElementById('signupForm').style.display = 'none';
+    document.getElementById('forgotForm').style.display = 'none';
+    document.getElementById('tabLoginBtn').style.color = '#fff';
+    document.getElementById('tabLoginBtn').style.fontWeight = 'bold';
+    document.getElementById('tabSignupBtn').style.color = '#888';
+    document.getElementById('tabSignupBtn').style.fontWeight = 'normal';
+  } else {
+    document.getElementById('loginForm').style.display = 'none';
+    document.getElementById('signupForm').style.display = 'block';
+    document.getElementById('forgotForm').style.display = 'none';
+    document.getElementById('tabSignupBtn').style.color = '#fff';
+    document.getElementById('tabSignupBtn').style.fontWeight = 'bold';
+    document.getElementById('tabLoginBtn').style.color = '#888';
+    document.getElementById('tabLoginBtn').style.fontWeight = 'normal';
+  }
+}
+
+function showForgotPassword(e) {
+  e.preventDefault();
+  document.getElementById('loginForm').style.display = 'none';
+  document.getElementById('forgotForm').style.display = 'block';
+}
+
+function backToLogin(e) {
+  e.preventDefault();
+  document.getElementById('forgotForm').style.display = 'none';
+  document.getElementById('loginForm').style.display = 'block';
+}
+
+function closeAuthModal() {
+  document.getElementById('authModal').style.display = 'none';
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value;
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  errEl.innerText = '';
+
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if(data.ok) {
+      window.location.reload();
+    } else {
+      errEl.innerText = data.error || 'Giriş uğursuz oldu.';
+    }
+  } catch {
+    errEl.innerText = 'Şəbəkə xətası baş verdi.';
+  }
+}
+
+async function handleSignup(e) {
+  e.preventDefault();
+  const email = document.getElementById('signupEmail').value;
+  const password = document.getElementById('signupPassword').value;
+  const errEl = document.getElementById('signupError');
+  errEl.innerText = '';
+
+  try {
+    const res = await fetch('/api/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if(data.ok) {
+      window.location.reload();
+    } else {
+      errEl.innerText = data.error || 'Qeydiyyat uğursuz oldu.';
+    }
+  } catch {
+    errEl.innerText = 'Şəbəkə xətası baş verdi.';
+  }
+}
+
+async function handleForgot(e) {
+  e.preventDefault();
+  const email = document.getElementById('forgotEmail').value;
+  const msgEl = document.getElementById('forgotMessage');
+  msgEl.innerText = '';
+
+  try {
+    const res = await fetch('/api/forgot-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    if(data.ok) {
+      msgEl.innerText = data.message || 'Sorğu qəbul edildi.';
+      if(data.debugToken) {
+        console.log("Reset Token:", data.debugToken);
+      }
+    } else {
+      msgEl.style.color = '#ff4444';
+      msgEl.innerText = data.error || 'Xəta baş verdi.';
+    }
+  } catch {
+    msgEl.style.color = '#ff4444';
+    msgEl.innerText = 'Şəbəkə xətası baş verdi.';
+  }
+}
+</script>
 </body>
 </html>

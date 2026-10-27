@@ -1447,5 +1447,30 @@ document.querySelectorAll('[data-close], .modal').forEach(el => {
     }
   });
 </script>
+  <script src="https://cdn.paddle.com/v2/paddle.js"></script>
+<script>
+// 1. Paddle ödəniş sistemini başladırıq
+Paddle.Initialize({
+  token: 'live_2fb858cc462bdb02178dab29b1c',
+  environment: 'live'
+});
+
+function startCheckout(priceId) {
+  Paddle.Checkout.open({
+    items: [{ priceId: priceId, quantity: 1 }]
+  });
+}
+
+// 2. "Sign in" düyməsinə basanda hesab pəncərəsini açmaq
+document.addEventListener('DOMContentLoaded', () => {
+  const btnAcct = document.getElementById('btn-acct');
+  if (btnAcct) {
+    btnAcct.addEventListener('click', () => {
+      const modal = document.getElementById('m-account');
+      if (modal) modal.classList.add('open');
+    });
+  }
+});
+</script>
 </body>
 </html>

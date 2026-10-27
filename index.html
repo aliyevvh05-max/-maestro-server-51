@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MAESTRO — Interior Design AI</title>
-<style>
+<script src="https://cdn.paddle.com/v2/paddle.js"></script>
+  <style>
 @import url('https://fonts.googleapis.com/css2?family=Italiana&family=Outfit:wght@300;400;600&family=Playfair+Display:ital,wght@1,500&display=swap');
 
 * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
@@ -1211,6 +1212,44 @@ function boot() {
   splitTitlesIntoChars(); initScene(); onWindowResize(); animate(); setupNavigation(); initApp();
 }
 if (document.readyState === 'loading') addEventListener('DOMContentLoaded', boot); else boot();
+</script>
+<script>
+  // Paddle-ni başladırıq
+  Paddle.Initialize({
+    token: 'live_2fb858cc462bdb02178dab29b1c',
+    environment: 'live'
+  });
+
+  // Ödəniş pəncərəsini açan funksiya
+  function startCheckout(priceId) {
+    Paddle.Checkout.open({
+      items: [
+        {
+          priceId: priceId,
+          quantity: 1
+        }
+      ]
+    });
+  }
+</script>
+ <script>
+  // Paddle-ni başladırıq
+  Paddle.Initialize({
+    token: 'live_2fb858cc462bdb02178dab29b1c',
+    environment: 'live'
+  });
+
+  // Ödəniş pəncərəsini açan funksiya
+  function startCheckout(priceId) {
+    Paddle.Checkout.open({
+      items: [
+        {
+          priceId: priceId,
+          quantity: 1
+        }
+      ]
+    });
+  }
 </script>
 </body>
 </html>

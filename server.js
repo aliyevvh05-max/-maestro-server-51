@@ -198,7 +198,27 @@ app.post('/api/generate', genLimit, (req, res) => {
 app.get('*', (_req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
-
+// Paddle Webhook (Ödəniş uğurlu olduqda kredit artırma)
+app.post('/api/webhook/paddle', express.json(), (req, res) => {
+  try {
+    const event = req.body;
+    if (event && event.event_type === 'transaction.completed') {
+      const transaction = event.data;
+      const customerEmail = transaction.customer && transaction.customer.email;
+      if (customerEmail) {
+        const normEmail = emailKey(customerEmail);
+        const db = readDb();
+        if (db.users[normEmail]) {
+          db.users[normEmail].credits = (db.users[normEmail].credits || 0) + 10;
+          writeDb(db);
+        }
+      }
+    }
+    res.status(200).json({ received: true });
+  } catch (err) {
+    res.status(500).json({ received: false });
+  }
+});
 const PORT_FINAL = process.env.PORT || 3000;
 app.listen(PORT_FINAL, () => {
   console.log(`Maestro server running on port ${PORT_FINAL} - Created by V. Aliyev`);

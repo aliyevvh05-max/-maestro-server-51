@@ -1436,5 +1436,16 @@ document.querySelectorAll('[data-close], .modal').forEach(el => {
   });
 });
 </script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('btn-acct');
+    if (btn) {
+      btn.addEventListener('click', () => {
+        const modal = document.getElementById('m-account');
+        if (modal) modal.classList.add('open');
+      });
+    }
+  });
+</script>
 </body>
 </html>

@@ -1420,5 +1420,21 @@ async function handleForgot(e) {
   }
 }
 </script>
+  <script>
+// "Sign in" düyməsinə basanda Account pəncərəsini açmaq üçün
+document.getElementById('btn-acct').addEventListener('click', () => {
+  const modal = document.getElementById('m-account');
+  if(modal) modal.classList.add('open');
+});
+
+// Pəncərəni bağlamaq üçün
+document.querySelectorAll('[data-close], .modal').forEach(el => {
+  el.addEventListener('click', (e) => {
+    if(e.target === el || e.target.hasAttribute('data-close')) {
+      document.querySelectorAll('.modal').forEach(m => m.classList.remove('open'));
+    }
+  });
+});
+</script>
 </body>
 </html>
